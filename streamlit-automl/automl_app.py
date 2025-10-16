@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import streamlit as st
+st.write("Streamlit version:", st.__version__)
 from callbacks import Callbacks
 from ml_modeling import AutoMLModeling
 from ml_ops import ModelReg
