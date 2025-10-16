@@ -87,13 +87,18 @@ class AutoMLModeling:
     def render_ml_builder(self):
         with st.container(height=101, border=False):
             if st.button("🔍"):
-                if st.session_state["dataset"]:
-                    AutoHistogram(
-                        df=st.session_state["dataset"],
-                        name=f"{st.session_state.get('aml_mpa.sel_db','-')}.{st.session_state.get('aml_mpa.sel_schema','-')}.{st.session_state.get('aml_mpa.sel_table','-')}",
-                    ).render_grid()
+                if st.session_state.get("dataset"):
+                    st.session_state.show_histogram = True
                 else:
                     st.toast("You must select a dataset before.")
+
+        if st.session_state.get("show_histogram", False):
+            with st.expander("Exploratory Data Analysis", expanded=True):
+                AutoHistogram(
+                    df=st.session_state["dataset"],
+                    name=f"{st.session_state.get('aml_mpa.sel_db','-')}.{st.session_state.get('aml_mpa.sel_schema','-')}.{st.session_state.get('aml_mpa.sel_table','-')}",
+                ).render_grid()
+
 
         TopMenu()
         if st.session_state["app_state"] > -1:
