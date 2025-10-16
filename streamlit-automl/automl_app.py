@@ -7,15 +7,18 @@ from ml_modeling import AutoMLModeling
 from ml_ops import ModelReg
 from utils import initialize_session_state, set_png_as_page_bg
 
-if "sidebar_state" not in st.session_state:
-    st.session_state["sidebar_state"] = "collapsed"
-
 st.set_page_config(
     layout="wide",
     page_title="Snowflake Auto ML",
     page_icon="❄️",
     initial_sidebar_state=st.session_state["sidebar_state"],
 )
+
+st.write("Streamlit version:", st.__version__)
+st.write("✅ App loaded successfully")
+
+if "sidebar_state" not in st.session_state:
+    st.session_state["sidebar_state"] = "collapsed"
 
 initialize_session_state()
 
