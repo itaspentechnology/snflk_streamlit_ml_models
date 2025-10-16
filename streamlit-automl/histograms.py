@@ -98,6 +98,5 @@ class AutoHistogram:
             selection_index = selected["selection"]["rows"][0]
             self.render_histograms(ordered_df.iloc[selection_index])
 
-@st.dialog("Exploratory Data Analysis", title="Exploratory Data Analysis")
 def show_histogram_dialog(histogram: AutoHistogram):
     histogram.render_grid()
