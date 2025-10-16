@@ -11,15 +11,18 @@ st.set_page_config(
     layout="wide",
     page_title="Snowflake Auto ML",
     page_icon="❄️",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed",  # static default
 )
 
-st.write("Streamlit version:", st.__version__)
-st.write("✅ App loaded successfully")
-
+# ✅ Now it's safe to use session state
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 
+# Debug info
+st.write("Streamlit version:", st.__version__)
+st.write("✅ App loaded successfully")
+
+# Initialize session state
 initialize_session_state()
 
 with open(Path(__file__).parent / "styles" / "css_bootstrap.html", "r") as r:
