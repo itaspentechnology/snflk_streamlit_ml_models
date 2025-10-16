@@ -6,7 +6,7 @@ import streamlit as st
 from callbacks import Callbacks
 from code_exporter import create_notebook
 from common import get_col_types
-from histograms import AutoHistogram
+from histograms import AutoHistogram, show_histogram_dialog
 from model_metrics import ModelMetrics
 from preprocessing import AutoPreProcessor
 from snowflake.ml.modeling.impute import SimpleImputer
