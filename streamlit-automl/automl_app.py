@@ -49,10 +49,29 @@ with st.container(height=135, border=False):
 
 if st.session_state["logged_in"]:
     session = st.session_state["session"]
-    if st.session_state["workflow"] == 0:
-        ModelReg(session=session).render_registry()
-        pass
 
-    # Workflow 1 = ML Model
+    # Workflow 0 = Registry
+    if st.session_state["workflow"] == 0:
+        model_reg = ModelReg(session=session)
+        model_reg.render_registry()
+
+        # Trigger model test
+        if st.button("Run Model Test"):
+            st.session_state.show_model_test = True
+
+        # Show model test UI
+        if st.session_state.get("show_model_test", False):
+            with st.expander("Model Test", expanded=True):
+                if st.session_state.get("dataset"):
+                    tbl_name = f"{st.session_state.get('aml_mpa.sel_db','-')}.{st.session_state.get('aml_mpa.sel_schema','-')}.{st.session_state.get('aml_mpa.sel_table','-')}"
+                    model_reg.call_test_models(
+                        df=st.session_state["dataset"],
+                        tbl_name=tbl_name,
+                    )
+                else:
+                    st.warning("You must select a dataset before running model tests.")
+
+    # Workflow 1 = ML Builder
     if st.session_state["workflow"] == 1:
         AutoMLModeling(session=session).render_ml_builder()
+
