@@ -51,7 +51,7 @@ def prepare_eda_data(_df, name) -> pd.DataFrame:
 class AutoHistogram:
     @st.dialog("Exploratory Data Analysis", title="Exploratory Data Analysis")
     def show_histogram_dialog(histogram: AutoHistogram):
-    histogram.render_grid()
+        histogram.render_grid()
 
     def __init__(self, df, name) -> None:
         self.df = df
