@@ -106,29 +106,6 @@ class ModelReg:
 
         return metric_results
 
-    @st.dialog("Model Test")
-    def call_test_models(self, df: Union[pd.DataFrame, DataFrame], tbl_name: str):
-        test_columns = st.columns((1, 2, 2))
-        test_status = test_columns[0].status("Model Test", expanded=True)
-        warning = test_columns[0].empty()
-        warning.warning(
-            "Model Testing in progress, please do not close this window.", icon="⚠️"
-        )
-
-        for k, v in st.session_state["model_card_kwargs"].items():
-            self.test_model_version(
-                loc=k,
-                df=df,
-                source_table_name=tbl_name,
-                test_status=test_status,
-                test_columns=test_columns,
-            )
-        test_status.update(state="complete")
-        warning.empty()
-        warning.info(
-            "Model Testing Complete, You may close this window now.", icon="✅"
-        )
-
     def test_model_version(
         self,
         loc: int,
@@ -480,3 +457,25 @@ class ModelReg:
                         axis=1,
                     )
                     self.create_models_grid(models=selected_models, pos=selected)
+
+    def call_test_models(self, df: Union[pd.DataFrame, DataFrame], tbl_name: str):
+        test_columns = st.columns((1, 2, 2))
+        test_status = test_columns[0].status("Model Test", expanded=True)
+        warning = test_columns[0].empty()
+        warning.warning(
+            "Model Testing in progress, please do not close this window.", icon="⚠️"
+        )
+
+        for k, v in st.session_state["model_card_kwargs"].items():
+            self.test_model_version(
+                loc=k,
+                df=df,
+                source_table_name=tbl_name,
+                test_status=test_status,
+                test_columns=test_columns,
+            )
+        test_status.update(state="complete")
+        warning.empty()
+        warning.info(
+            "Model Testing Complete, You may close this window now.", icon="✅"
+        )
