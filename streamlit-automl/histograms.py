@@ -84,11 +84,18 @@ class AutoHistogram:
         st.altair_chart(hist, use_container_width=True)
 
     @st.dialog("Exploratory Data Analysis", title="Exploratory Data Analysis")
-    def render_grid(self):
-        st.info("Click the cell to the left of a feature name to display a histogram.")
-        ordered_df = self.eval_df.sort_values(by="Index").fillna('')
-        selected = st.dataframe(ordered_df,use_container_width=True, on_select="rerun", hide_index=True, key='histogram_select', selection_mode="single-row")
-        if selected:
-            if selected.get("selection").get("rows", False):
-                selection_index = selected.get("selection").get("rows")[0]
-                self.render_histograms(ordered_df.iloc[selection_index])
+    def render_grid(histogram: AutoHistogram):
+    st.info("Click the cell to the left of a feature name to display a histogram.")
+    ordered_df = histogram.eval_df.sort_values(by="Index").fillna('')
+    selected = st.dataframe(
+        ordered_df,
+        use_container_width=True,
+        on_select="rerun",
+        hide_index=True,
+        key='histogram_select',
+        selection_mode="single-row"
+    )
+    if selected and selected.get("selection").get("rows", False):
+        selection_index = selected["selection"]["rows"][0]
+        histogram.render_histograms(ordered_df.iloc[selection_index])
+
