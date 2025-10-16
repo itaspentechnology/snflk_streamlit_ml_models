@@ -6,7 +6,7 @@ import streamlit as st
 from callbacks import Callbacks
 from code_exporter import create_notebook
 from common import get_col_types
-from histograms import AutoHistogram
+from histograms import AutoHistogram, show_histogram_dialog
 from model_metrics import ModelMetrics
 from preprocessing import AutoPreProcessor
 from snowflake.ml.modeling.impute import SimpleImputer
@@ -32,10 +32,15 @@ AVATAR_PATH = str(Path(__file__).parent / "resources" / "Snowflake_ICON_Chat.png
 
 
 def set_state(state: int):
+    if "recorded_steps" not in st.session_state:
+        st.session_state["recorded_steps"] = []
+        
     st.session_state["app_state"] = state
     if state not in st.session_state["recorded_steps"]:
         st.session_state["recorded_steps"].append(state)
 
+    st.write(f"🔄 App state set to: {state}")
+    st.write(f"✅ Recorded steps: {st.session_state['recorded_steps']}")
 
 def create_metric_card(label, value):
     return f"""
