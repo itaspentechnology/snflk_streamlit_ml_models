@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide",
     page_title="Snowflake Auto ML",
     page_icon="❄️",
-    initial_sidebar_state=st.session_state["sidebar_state"],
+    initial_sidebar_state="collapsed",
 )
 
 st.write("Streamlit version:", st.__version__)
