@@ -1,18 +1,17 @@
 from pathlib import Path
-
 import streamlit as st
-st.write("Streamlit version:", st.__version__)
-from callbacks import Callbacks
-from ml_modeling import AutoMLModeling
-from ml_ops import ModelReg
-from utils import initialize_session_state, set_png_as_page_bg
-
 st.set_page_config(
     layout="wide",
     page_title="Snowflake Auto ML",
     page_icon="❄️",
     initial_sidebar_state="collapsed",  # static default
 )
+from callbacks import Callbacks
+from ml_modeling import AutoMLModeling
+from ml_ops import ModelReg
+from utils import initialize_session_state, set_png_as_page_bg
+
+
 
 # ✅ Now it's safe to use session state
 if "sidebar_state" not in st.session_state:
