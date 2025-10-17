@@ -302,25 +302,24 @@ class AutoMLModeling:
                                 args=[2],
                                 key="pproc_nxt",
                             )
-                        
-                        # Move preview popover outside the expander to avoid nesting
-                        if (
-                            len(pprocessing_steps)
-                            == len(st.session_state["preprocessing_steps"])
-                            and len(st.session_state["preprocessing_steps"]) > 0
-                        ):
-                            preproc_preview = st.popover(
-                                "Preview", use_container_width=True
-                            )
-                            if (
-                                st.session_state["pipeline_run"]
-                                and st.session_state["processed_df"]
-                            ):
-                                preproc_preview.container(height=20, border=False)
-                                preproc_preview.dataframe(
-                                    st.session_state["processed_df"].limit(10),
-                                    hide_index=True,
-                                )
+        
+        # Move preview popover completely outside chat context to avoid nesting
+        if (1 in st.session_state["recorded_steps"] and 
+            st.session_state.get("dataset") and
+            st.session_state.get("preprocessing_steps") and
+            len(st.session_state["preprocessing_steps"]) > 0):
+            preproc_preview = st.popover(
+                "Preview", use_container_width=True
+            )
+            if (
+                st.session_state.get("pipeline_run", False)
+                and st.session_state.get("processed_df") is not None
+            ):
+                preproc_preview.container(height=20, border=False)
+                preproc_preview.dataframe(
+                    st.session_state["processed_df"].limit(10),
+                    hide_index=True,
+                )
         if 2 in st.session_state["recorded_steps"] and st.session_state["dataset"]:
             modeling_chat = st.chat_message(name="assistant", avatar=AVATAR_PATH)
             with modeling_chat:
