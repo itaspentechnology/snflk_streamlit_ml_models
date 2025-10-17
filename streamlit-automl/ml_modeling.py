@@ -200,16 +200,6 @@ class AutoMLModeling:
                     )
 
                     if feature_cols and target_col:
-                        # Validate column names exist in dataset
-                        available_cols = st.session_state["dataset"].columns
-                        invalid_feature_cols = [col for col in feature_cols if col not in available_cols]
-                        if invalid_feature_cols:
-                            st.error(f"Invalid feature columns: {invalid_feature_cols}")
-                            st.stop()
-                        if target_col not in available_cols:
-                            st.error(f"Invalid target column: {target_col}")
-                            st.stop()
-                            
                         t_sub = st.session_state["dataset"].select(
                             feature_cols + [target_col]
                         )
@@ -466,9 +456,10 @@ class AutoMLModeling:
                                 "LogisticRegression": (LogisticRegression, {}),
                             }
 
-                            # Create base parameters - only include parameters that all models support
-                            base_params = {
+                            shared_params = {
+                                "random_state": 42,
                                 "input_cols": feature_cols,
+                                "n_jobs": -1,
                                 "label_cols": target_col,
                             }
 
@@ -476,53 +467,22 @@ class AutoMLModeling:
                                 model_class, specific_params = model_classes[
                                     model_selections
                                 ]
-                                
-                                # Add model-specific parameters
-                                model_params = base_params.copy()
-                                
-                                if model_selections in ["XGBClassifier", "XGBRegressor"]:
-                                    model_params["random_state"] = 42
-                                    model_params["n_jobs"] = -1
+                                if model_selections == "LinearRegression":
+                                    del shared_params["random_state"]
+                                    del shared_params["n_jobs"]
+                                elif model_selections == "ElasticNet":
+                                    del shared_params["n_jobs"]
                                 elif model_selections == "LogisticRegression":
-                                    model_params["random_state"] = 42
-                                # LinearRegression and ElasticNet don't need additional params
-                                
-                                model = model_class(**model_params, **specific_params)
+                                    del shared_params["n_jobs"]
+                                model = model_class(**shared_params, **specific_params)
                                 pprocessing_steps.append((model_selections, model))
 
                             complete_pipeline = Pipeline(steps=pprocessing_steps)
-                            
-                            # Validate columns exist before fitting
-                            available_cols = st.session_state["dataset"].columns
-                            all_cols = feature_cols + [target_col]
-                            invalid_cols = [col for col in all_cols if col not in available_cols]
-                            if invalid_cols:
-                                st.error(f"Invalid columns for model fitting: {invalid_cols}")
-                                st.error(f"Available columns: {available_cols}")
-                                st.stop()
-                            
-                            # Debug information
-                            st.write(f"Debug: Pipeline steps: {[step[0] for step in pprocessing_steps]}")
-                            st.write(f"Debug: Feature columns: {feature_cols}")
-                            st.write(f"Debug: Target column: {target_col}")
-                            st.write(f"Debug: Dataset shape: {st.session_state['dataset'].count()} rows")
-                            
-                            try:
-                                training_data = st.session_state["dataset"].select(
+                            complete_pipeline.fit(
+                                st.session_state["dataset"].select(
                                     feature_cols + [target_col]
                                 )
-                                st.write(f"Debug: Training data columns: {training_data.columns}")
-                                
-                                complete_pipeline.fit(training_data)
-                            except Exception as e:
-                                st.error(f"Pipeline fitting failed with error: {str(e)}")
-                                st.error(f"Error type: {type(e).__name__}")
-                                # Show the actual pipeline steps for debugging
-                                for i, (step_name, step_obj) in enumerate(pprocessing_steps):
-                                    st.write(f"Step {i}: {step_name} - {type(step_obj).__name__}")
-                                    if hasattr(step_obj, 'get_params'):
-                                        st.write(f"  Parameters: {step_obj.get_params()}")
-                                raise e
+                            )
                             fit_prg.progress(
                                 value=50, text="Model Fitted, running predictions"
                             )
