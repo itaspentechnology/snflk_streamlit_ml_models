@@ -294,6 +294,18 @@ class AutoMLModeling:
                                     progress_cont.empty()
                                     st.session_state["pipeline_run"] = True
 
+                            preproc_preview = st.popover(
+                                "Preview", use_container_width=True
+                            )
+                            if (
+                                st.session_state["pipeline_run"]
+                                and st.session_state["processed_df"]
+                            ):
+                                preproc_preview.container(height=20, border=False)
+                                preproc_preview.dataframe(
+                                    st.session_state["processed_df"].limit(10),
+                                    hide_index=True,
+                                )
                             st.button(
                                 "Next",
                                 use_container_width=True,
@@ -302,24 +314,6 @@ class AutoMLModeling:
                                 args=[2],
                                 key="pproc_nxt",
                             )
-        
-        # Move preview popover completely outside chat context to avoid nesting
-        if (1 in st.session_state["recorded_steps"] and 
-            st.session_state.get("dataset") and
-            st.session_state.get("preprocessing_steps") and
-            len(st.session_state["preprocessing_steps"]) > 0):
-            preproc_preview = st.popover(
-                "Preview", use_container_width=True
-            )
-            if (
-                st.session_state.get("pipeline_run", False)
-                and st.session_state.get("processed_df") is not None
-            ):
-                preproc_preview.container(height=20, border=False)
-                preproc_preview.dataframe(
-                    st.session_state["processed_df"].limit(10),
-                    hide_index=True,
-                )
         if 2 in st.session_state["recorded_steps"] and st.session_state["dataset"]:
             modeling_chat = st.chat_message(name="assistant", avatar=AVATAR_PATH)
             with modeling_chat:
@@ -364,9 +358,89 @@ class AutoMLModeling:
                             "Fit Model & Run Prediction(s)", use_container_width=True
                         )
 
-                        # Store notebook info for popover outside expander
-                        if "notebook_popover_ready" not in st.session_state:
-                            st.session_state["notebook_popover_ready"] = False
+                        with fit_menu[2].popover(
+                            "Download Notebook",
+                            use_container_width=True,
+                            disabled=not st.session_state["model_ran"],
+                        ):
+                            st.markdown("Please input Project Name, then hit Save")
+                            proj_name = st.text_input("Project Name")
+                            registry_db = st.selectbox(
+                                "Database",
+                                options=get_databases(),
+                                index=None,
+                                placeholder="Choose a Database",
+                                label_visibility="collapsed",
+                                key="registry_nb_db",
+                            )
+                            if registry_db:
+                                registry_schema = st.selectbox(
+                                    "Schema",
+                                    options=get_schemas(
+                                        _session=self.session,
+                                        database_name=(
+                                            registry_db if registry_db else []
+                                        ),
+                                    ),
+                                    index=None,
+                                    placeholder="Choose a Schema",
+                                    label_visibility="collapsed",
+                                    key="registry_nb_schema",
+                                )
+                                # TODO: Make this not if-if-if nested.
+                                if all([proj_name, registry_db, registry_schema]):
+                                    download_column1, download_column2 = st.columns(2)
+                                    st.session_state.notebook_btn = (
+                                        download_column1.download_button(
+                                            label="Download",
+                                            data=create_notebook(
+                                                st.session_state[
+                                                    "full_qualified_table_nm"
+                                                ],
+                                                st.session_state.complete_pipeline,
+                                                project_name=proj_name,
+                                                registry_database=registry_db,
+                                                registry_schema=registry_schema,
+                                                context="local",
+                                            ),
+                                            file_name=proj_name + ".ipynb",
+                                            mime="application/x-ipynb+json",
+                                        )
+                                    )
+                                    upload_button = download_column2.button(
+                                        label="Create Snowflake Notebook"
+                                    )
+                                    if upload_button:
+                                        # TODO: Context is being set in app based on source data. Notebook creation should take user's context.
+                                        stage_name = str(
+                                            st.session_state["session"]
+                                            .get_session_stage()
+                                            .replace('"', "")
+                                            .replace("@", "")
+                                        )
+                                        target_path = (
+                                            f"@{stage_name}/ntbk/{proj_name}.ipynb"
+                                        )
+                                        self.session.file.put_stream(
+                                            create_notebook(
+                                                st.session_state[
+                                                    "full_qualified_table_nm"
+                                                ],
+                                                st.session_state.complete_pipeline,
+                                                project_name=proj_name,
+                                                registry_database=registry_db,
+                                                registry_schema=registry_schema,
+                                                context="snowflake",
+                                            ),
+                                            target_path,
+                                            auto_compress=False,
+                                        )
+                                        self.session.sql(
+                                            f"""CREATE NOTEBOOK {registry_db}.{registry_schema}.{proj_name}
+ FROM '@{stage_name}/ntbk'
+ MAIN_FILE = '{proj_name}.ipynb'
+ QUERY_WAREHOUSE = {self.session.get_current_warehouse()}"""
+                                        ).collect()
 
                         if fit_btn:
                             fit_prg_cont = st.empty()
@@ -384,7 +458,7 @@ class AutoMLModeling:
 
                             shared_params = {
                                 "random_state": 42,
-                                "input_cols": feature_cols,
+                                "input_cols": [],
                                 "n_jobs": -1,
                                 "label_cols": target_col,
                             }
@@ -395,10 +469,7 @@ class AutoMLModeling:
                                 ]
                                 if model_selections == "LinearRegression":
                                     del shared_params["random_state"]
-                                    del shared_params["n_jobs"]
                                 elif model_selections == "ElasticNet":
-                                    del shared_params["n_jobs"]
-                                elif model_selections == "LogisticRegression":
                                     del shared_params["n_jobs"]
                                 model = model_class(**shared_params, **specific_params)
                                 pprocessing_steps.append((model_selections, model))
@@ -447,9 +518,99 @@ class AutoMLModeling:
                                 hide_index=True,
                                 use_container_width=True,
                             )
-                        # Store registry info for popover outside expander
-                        if "registry_popover_ready" not in st.session_state:
-                            st.session_state["registry_popover_ready"] = False
+                            with fit_menu[3].popover(
+                                "Save to Registry",
+                                use_container_width=True,
+                                disabled=not st.session_state["model_ran"],
+                            ):
+                                st.markdown("Please input Project Name, then hit Save")
+                                if st.session_state["environment"] == "sis":
+                                    tgt_database = st.session_state[
+                                        "session"
+                                    ].get_current_database()
+                                    tgt_schema = st.session_state[
+                                        "session"
+                                    ].get_current_schema()
+                                    st.caption(
+                                        f"{tgt_database[1:-1]}.{tgt_schema[1:-1]}"
+                                    )
+
+                                else:
+                                    tgt_database = st.selectbox(
+                                        "Database",
+                                        options=get_databases(),
+                                        index=None,
+                                        placeholder="Choose a Database",
+                                        label_visibility="collapsed",
+                                        key="tgt_db",
+                                    )
+                                    tgt_schema = st.selectbox(
+                                        "Schema",
+                                        options=(
+                                            get_schemas(
+                                                database_name=(
+                                                    tgt_database if tgt_database else []
+                                                ),
+                                                _session=self.session,
+                                            )
+                                            if tgt_database
+                                            else []
+                                        ),
+                                        index=None,
+                                        placeholder="Choose a Schema",
+                                        label_visibility="collapsed",
+                                        key="tgt_schema",
+                                    )
+                                tgt_model_name = st.text_input(
+                                    "",
+                                    label_visibility="collapsed",
+                                    placeholder="Model Name",
+                                    key="tgt_forecast_name",
+                                )
+                                target_location = (
+                                    ".".join([tgt_database, tgt_schema, tgt_model_name])
+                                    if all([tgt_database, tgt_schema, tgt_model_name])
+                                    else None
+                                )
+                                if target_location:
+                                    reg = Registry(
+                                        self.session,
+                                        database_name=tgt_database,
+                                        schema_name=tgt_schema,
+                                    )
+                                    try:
+                                        reg.get_model(tgt_model_name)
+                                        st.write(
+                                            f"Model {tgt_model_name} already exists in {tgt_database}.{tgt_schema}. Would you like to save as a new version?"
+                                        )
+                                        button_text = "Save New Version"
+                                    except ValueError:
+                                        button_text = "Register"
+
+                                    register_columns = st.columns(2)
+
+                                    if register_columns[0].button(button_text):
+                                        try:
+                                            with register_columns[1]:
+                                                with st.spinner("Saving..."):
+                                                    query_tag_comment = '{"origin": "sf_sit", "name": "ml_sidekick", "version": {"major":1, "minor":0}, "attributes":{"component":"model"}}'
+                                                    reg.log_model(
+                                                        model=st.session_state[
+                                                            "pipeline_object"
+                                                        ],
+                                                        model_name=tgt_model_name,
+                                                        metrics=st.session_state[
+                                                            "pipeline_metrics"
+                                                        ],
+                                                        comment = query_tag_comment
+                                                    )
+                                                    reg.get_model(tgt_model_name).comment = query_tag_comment
+                                                    st.toast("Model Registered")
+
+                                        except Exception as e:
+                                            st.toast(
+                                                f"Failed to register model \n\n {e}"
+                                            )
 
                         if st.session_state["pipeline_metrics"]:
                             st.header("Model Metrics", anchor=False)
@@ -644,150 +805,3 @@ class AutoMLModeling:
                                 hide_index=True,
                                 use_container_width=True,
                             )
-        
-        # Add popovers outside expanders to avoid nesting issues
-        if (2 in st.session_state["recorded_steps"] and 
-            st.session_state.get("dataset") and
-            st.session_state.get("model_ran", False)):
-            
-            # Download Notebook Popover
-            with st.popover("Download Notebook", use_container_width=True):
-                st.markdown("Please input Project Name, then hit Save")
-                proj_name = st.text_input("Project Name", key="proj_name_popup")
-                registry_db = st.selectbox(
-                    "Database",
-                    options=get_databases(),
-                    index=None,
-                    placeholder="Choose a Database",
-                    label_visibility="collapsed",
-                    key="registry_nb_db_popup",
-                )
-                if registry_db:
-                    registry_schema = st.selectbox(
-                        "Schema",
-                        options=get_schemas(
-                            _session=self.session,
-                            database_name=(
-                                registry_db if registry_db else []
-                            ),
-                        ),
-                        index=None,
-                        placeholder="Choose a Schema",
-                        label_visibility="collapsed",
-                        key="registry_nb_schema_popup",
-                    )
-                    if all([proj_name, registry_db, registry_schema]):
-                        download_column1, download_column2 = st.columns(2)
-                        download_column1.download_button(
-                            label="Download",
-                            data=create_notebook(
-                                st.session_state.get("full_qualified_table_nm", ""),
-                                st.session_state.get("complete_pipeline"),
-                                project_name=proj_name,
-                                registry_database=registry_db,
-                                registry_schema=registry_schema,
-                                context="local",
-                            ),
-                            file_name=proj_name + ".ipynb",
-                            mime="application/x-ipynb+json",
-                        )
-                        if download_column2.button("Create Snowflake Notebook"):
-                            try:
-                                stage_name = str(
-                                    st.session_state["session"]
-                                    .get_session_stage()
-                                    .replace('"', "")
-                                    .replace("@", "")
-                                )
-                                target_path = f"@{stage_name}/ntbk/{proj_name}.ipynb"
-                                self.session.file.put_stream(
-                                    create_notebook(
-                                        st.session_state["full_qualified_table_nm"],
-                                        st.session_state.complete_pipeline,
-                                        project_name=proj_name,
-                                        registry_database=registry_db,
-                                        registry_schema=registry_schema,
-                                        context="snowflake",
-                                    ),
-                                    target_path,
-                                    auto_compress=False,
-                                )
-                                self.session.sql(
-                                    f"""CREATE NOTEBOOK {registry_db}.{registry_schema}.{proj_name}
-FROM '@{stage_name}/ntbk'
-MAIN_FILE = '{proj_name}.ipynb'
-QUERY_WAREHOUSE = {self.session.get_current_warehouse()}"""
-                                ).collect()
-                                st.success("Notebook created successfully!")
-                            except Exception as e:
-                                st.error(f"Failed to create notebook: {str(e)}")
-            
-            # Save to Registry Popover
-            with st.popover("Save to Registry", use_container_width=True):
-                st.markdown("Please input Project Name, then hit Save")
-                if st.session_state.get("environment") == "sis":
-                    tgt_database = st.session_state["session"].get_current_database()
-                    tgt_schema = st.session_state["session"].get_current_schema()
-                    st.caption(f"{tgt_database[1:-1]}.{tgt_schema[1:-1]}")
-                else:
-                    tgt_database = st.selectbox(
-                        "Database",
-                        options=get_databases(),
-                        index=None,
-                        placeholder="Choose a Database",
-                        label_visibility="collapsed",
-                        key="tgt_db_popup",
-                    )
-                    tgt_schema = st.selectbox(
-                        "Schema",
-                        options=(
-                            get_schemas(
-                                database_name=(tgt_database if tgt_database else []),
-                                _session=self.session,
-                            )
-                            if tgt_database
-                            else []
-                        ),
-                        index=None,
-                        placeholder="Choose a Schema",
-                        label_visibility="collapsed",
-                        key="tgt_schema_popup",
-                    )
-                
-                tgt_model_name = st.text_input(
-                    "",
-                    label_visibility="collapsed",
-                    placeholder="Model Name",
-                    key="tgt_forecast_name_popup",
-                )
-                
-                if all([tgt_database, tgt_schema, tgt_model_name]):
-                    try:
-                        reg = Registry(
-                            session=self.session,
-                            database_name=tgt_database,
-                            schema_name=tgt_schema,
-                        )
-                        try:
-                            reg.get_model(tgt_model_name)
-                            st.write(f"Model {tgt_model_name} already exists. Save as new version?")
-                            button_text = "Save New Version"
-                        except ValueError:
-                            button_text = "Register"
-
-                        if st.button(button_text, use_container_width=True):
-                            try:
-                                with st.spinner("Saving..."):
-                                    query_tag_comment = '{"origin": "sf_sit", "name": "ml_sidekick", "version": {"major":1, "minor":0}, "attributes":{"component":"model"}}'
-                                    reg.log_model(
-                                        model=st.session_state["pipeline_object"],
-                                        model_name=tgt_model_name,
-                                        metrics=st.session_state.get("pipeline_metrics"),
-                                        comment=query_tag_comment
-                                    )
-                                    reg.get_model(tgt_model_name).comment = query_tag_comment
-                                    st.success("Model Registered Successfully!")
-                            except Exception as e:
-                                st.error(f"Failed to register model: {str(e)}")
-                    except Exception as e:
-                        st.error(f"Registry error: {str(e)}")
