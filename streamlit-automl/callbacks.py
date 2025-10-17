@@ -19,13 +19,36 @@ class Callbacks:
         st.session_state["eda_mode"] = st.session_state[mode]
 
     @staticmethod
-    def set_dataset(session: Session, db: str, schema: str, table: str) -> None:
-        db = f'"{db}"'
-        schema = f'"{schema}"'
-        table = f'"{st.session_state[table]}"'
-        fully_qualified_name = f"{db}.{schema}.{table}"
-        st.session_state["full_qualified_table_nm"] = fully_qualified_name
-        st.session_state["dataset"] = session.table(fully_qualified_name)
+    def set_dataset(session: Session, db: str, schema: str, table_key: str) -> None:
+        try:
+            # Get the actual table name from session state
+            table = st.session_state.get(table_key)
+            if not table:
+                st.error(f"Table not found in session state key: {table_key}")
+                return
+                
+            # Properly quote identifiers for Snowflake
+            db_quoted = f'"{db}"'
+            schema_quoted = f'"{schema}"'
+            table_quoted = f'"{table}"'
+            fully_qualified_name = f"{db_quoted}.{schema_quoted}.{table_quoted}"
+            
+            # Store the fully qualified table name
+            st.session_state["full_qualified_table_nm"] = fully_qualified_name
+            
+            # Create the dataset table reference
+            st.session_state["dataset"] = session.table(fully_qualified_name)
+            
+            # Clear any previous column selections when dataset changes
+            st.session_state["selected_features"] = []
+            st.session_state["selected_target"] = None
+            
+            st.success(f"✅ Dataset loaded: {fully_qualified_name}")
+            
+        except Exception as e:
+            st.error(f"❌ Failed to set dataset: {str(e)}")
+            st.error(f"Parameters: db={db}, schema={schema}, table_key={table_key}")
+            st.session_state["dataset"] = None
 
     @staticmethod
     def set_workflow(workflow_id: int):
