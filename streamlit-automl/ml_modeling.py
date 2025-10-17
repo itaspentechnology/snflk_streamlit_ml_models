@@ -458,7 +458,7 @@ class AutoMLModeling:
 
                             shared_params = {
                                 "random_state": 42,
-                                "input_cols": [],
+                                "input_cols": feature_cols,
                                 "n_jobs": -1,
                                 "label_cols": target_col,
                             }
@@ -469,7 +469,10 @@ class AutoMLModeling:
                                 ]
                                 if model_selections == "LinearRegression":
                                     del shared_params["random_state"]
+                                    del shared_params["n_jobs"]
                                 elif model_selections == "ElasticNet":
+                                    del shared_params["n_jobs"]
+                                elif model_selections == "LogisticRegression":
                                     del shared_params["n_jobs"]
                                 model = model_class(**shared_params, **specific_params)
                                 pprocessing_steps.append((model_selections, model))
