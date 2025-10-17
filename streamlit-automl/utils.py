@@ -173,6 +173,21 @@ def initialize_session_state():
         st.session_state.model_ran = False
     if "ts_col" not in st.session_state:
         st.session_state["ts_col"] = None
+    
+    # Enhanced session state for dynamic column processing
+    if "selected_features" not in st.session_state:
+        st.session_state["selected_features"] = []
+    if "selected_target" not in st.session_state:
+        st.session_state["selected_target"] = None
+    if "debug_cols" not in st.session_state:
+        st.session_state["debug_cols"] = False
+    if "show_histogram" not in st.session_state:
+        st.session_state["show_histogram"] = False
+    if "complete_pipeline" not in st.session_state:
+        st.session_state["complete_pipeline"] = None
+    if "full_qualified_table_nm" not in st.session_state:
+        st.session_state["full_qualified_table_nm"] = None
+        
     if st.session_state["logged_in"] is False:
         try:
             with st.spinner("Connecting to Snowflake"):
