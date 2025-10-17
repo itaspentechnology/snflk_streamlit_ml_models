@@ -189,6 +189,12 @@ class AutoMLModeling:
                 ):
                     st.header("Preprocessing Options")
                     st.caption(":red[*] required fields")
+                    
+                    # Debug: Show current dataset state
+                    if st.checkbox("Show Debug Info", key="debug_cols"):
+                        st.write(f"🔍 Dataset columns: {st.session_state['dataset'].columns}")
+                        st.write(f"🔍 Dataset shape: {st.session_state['dataset'].count()} rows")
+                    
                     feature_cols = st.multiselect(
                         "Select the feature columns.:red[*]",
                         options=st.session_state["dataset"].columns,
@@ -198,11 +204,68 @@ class AutoMLModeling:
                         st.session_state["dataset"].columns,
                         index=None,
                     )
+                    
+                    # Debug: Show what was selected
+                    if st.session_state.get("debug_cols", False) and (feature_cols or target_col):
+                        st.write(f"🔍 Selected features: {feature_cols} (type: {type(feature_cols)})")
+                        st.write(f"🔍 Selected target: {target_col} (type: {type(target_col)})")
 
                     if feature_cols and target_col:
-                        t_sub = st.session_state["dataset"].select(
-                            feature_cols + [target_col]
-                        )
+                        # Validate dataset state hasn't changed
+                        try:
+                            # Refresh dataset columns to ensure they're current
+                            current_columns = st.session_state["dataset"].columns
+                            
+                            # Debug output for dynamic selection
+                            if st.session_state.get("debug_cols", False):
+                                st.write(f"🔍 Current dataset columns: {current_columns}")
+                                st.write(f"🔍 Feature columns from UI: {feature_cols}")
+                                st.write(f"🔍 Target column from UI: {target_col}")
+                                
+                                # Check for any encoding/formatting differences
+                                for i, col in enumerate(feature_cols):
+                                    if col not in current_columns:
+                                        st.error(f"❌ Feature column #{i+1} '{col}' not found!")
+                                        st.write(f"   Column repr: {repr(col)}")
+                                        st.write(f"   Closest matches: {[c for c in current_columns if col.lower() in c.lower() or c.lower() in col.lower()]}")
+                                
+                                if target_col not in current_columns:
+                                    st.error(f"❌ Target column '{target_col}' not found!")
+                                    st.write(f"   Column repr: {repr(target_col)}")
+                                    st.write(f"   Closest matches: {[c for c in current_columns if target_col.lower() in c.lower() or c.lower() in target_col.lower()]}")
+                            
+                            # Validate that selected columns exist
+                            missing_features = [col for col in feature_cols if col not in current_columns]
+                            if missing_features:
+                                st.error(f"Selected feature columns not found: {missing_features}")
+                                st.error(f"Available columns: {current_columns}")
+                                st.error("This might be due to:")
+                                st.error("- Dataset state changed after column selection")
+                                st.error("- Column name encoding issues")
+                                st.error("- Session state corruption")
+                                st.stop()
+                            
+                            if target_col not in current_columns:
+                                st.error(f"Selected target column not found: {target_col}")
+                                st.error(f"Available columns: {current_columns}")
+                                st.stop()
+                            
+                            # Use column names exactly as they appear in the current dataset
+                            validated_features = [col for col in feature_cols if col in current_columns]
+                            selected_columns = validated_features + [target_col]
+                            
+                            if st.session_state.get("debug_cols", False):
+                                st.write(f"🔍 Validated columns for selection: {selected_columns}")
+                            
+                            t_sub = st.session_state["dataset"].select(selected_columns)
+                            
+                        except Exception as e:
+                            st.error(f"Error during column selection: {str(e)}")
+                            st.error(f"Error type: {type(e).__name__}")
+                            st.error(f"Feature columns: {feature_cols}")
+                            st.error(f"Target column: {target_col}")
+                            st.error(f"Dataset columns: {st.session_state['dataset'].columns}")
+                            st.stop()
                         cat_cols = get_col_types(t_sub, "string")
                         num_cols = get_col_types(t_sub, "numeric")
 
@@ -478,11 +541,46 @@ class AutoMLModeling:
                                 pprocessing_steps.append((model_selections, model))
 
                             complete_pipeline = Pipeline(steps=pprocessing_steps)
-                            complete_pipeline.fit(
-                                st.session_state["dataset"].select(
-                                    feature_cols + [target_col]
-                                )
-                            )
+                            
+                            # Validate columns before fitting the pipeline
+                            try:
+                                # Re-validate dataset state for pipeline fitting
+                                current_columns = st.session_state["dataset"].columns
+                                all_needed_columns = feature_cols + [target_col]
+                                
+                                if st.session_state.get("debug_cols", False):
+                                    st.write(f"🔍 Pipeline fitting - Current columns: {current_columns}")
+                                    st.write(f"🔍 Pipeline fitting - Needed columns: {all_needed_columns}")
+                                
+                                missing_columns = [col for col in all_needed_columns if col not in current_columns]
+                                
+                                if missing_columns:
+                                    st.error(f"Cannot fit pipeline - missing columns: {missing_columns}")
+                                    st.error(f"Available columns: {current_columns}")
+                                    st.error("Column state changed between preprocessing and modeling!")
+                                    st.stop()
+                                
+                                # Use validated column selection for fitting
+                                validated_features = [col for col in feature_cols if col in current_columns]
+                                training_columns = validated_features + [target_col]
+                                
+                                if st.session_state.get("debug_cols", False):
+                                    st.write(f"🔍 Training columns: {training_columns}")
+                                
+                                training_data = st.session_state["dataset"].select(training_columns)
+                                
+                                if st.session_state.get("debug_cols", False):
+                                    st.write(f"🔍 Training data columns: {training_data.columns}")
+                                
+                                complete_pipeline.fit(training_data)
+                                
+                            except Exception as e:
+                                st.error(f"Pipeline fitting failed: {str(e)}")
+                                st.error(f"Error type: {type(e).__name__}")
+                                st.error(f"Attempted to use columns: {feature_cols + [target_col]}")
+                                st.error(f"Available columns: {st.session_state['dataset'].columns}")
+                                st.error("This error occurred during dynamic column processing")
+                                raise
                             fit_prg.progress(
                                 value=50, text="Model Fitted, running predictions"
                             )
