@@ -294,6 +294,21 @@ class AutoMLModeling:
                                     progress_cont.empty()
                                     st.session_state["pipeline_run"] = True
 
+                            st.button(
+                                "Next",
+                                use_container_width=True,
+                                type="primary",
+                                on_click=set_state,
+                                args=[2],
+                                key="pproc_nxt",
+                            )
+                        
+                        # Move preview popover outside the expander to avoid nesting
+                        if (
+                            len(pprocessing_steps)
+                            == len(st.session_state["preprocessing_steps"])
+                            and len(st.session_state["preprocessing_steps"]) > 0
+                        ):
                             preproc_preview = st.popover(
                                 "Preview", use_container_width=True
                             )
@@ -306,14 +321,6 @@ class AutoMLModeling:
                                     st.session_state["processed_df"].limit(10),
                                     hide_index=True,
                                 )
-                            st.button(
-                                "Next",
-                                use_container_width=True,
-                                type="primary",
-                                on_click=set_state,
-                                args=[2],
-                                key="pproc_nxt",
-                            )
         if 2 in st.session_state["recorded_steps"] and st.session_state["dataset"]:
             modeling_chat = st.chat_message(name="assistant", avatar=AVATAR_PATH)
             with modeling_chat:
