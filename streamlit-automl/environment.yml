@@ -4,7 +4,7 @@ channels:
 dependencies:
   - streamlit=1.35.0
   - snowflake-snowpark-python
-  - snowflake-ml-python=1.6.0
+  - snowflake-ml-python=1.17.0
   - black=24.4.2
   - nbconvert=7.10.0
 
